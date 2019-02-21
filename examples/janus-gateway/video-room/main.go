@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"log"
 
@@ -53,8 +55,13 @@ func main() {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
 	})
 
+	randSSRC := make([]byte, 4)
+	if _, err = rand.Read(randSSRC); err != nil {
+		panic(err)
+	}
+
 	// Create a audio track
-	opusTrack, err := peerConnection.NewSampleTrack(webrtc.DefaultPayloadTypeOpus, "audio", "pion1")
+	opusTrack, err := peerConnection.NewTrack(webrtc.DefaultPayloadTypeOpus, binary.LittleEndian.Uint32(randSSRC), "audio", "pion1")
 	if err != nil {
 		panic(err)
 	}
@@ -63,8 +70,12 @@ func main() {
 		panic(err)
 	}
 
+	if _, err = rand.Read(randSSRC); err != nil {
+		panic(err)
+	}
+
 	// Create a video track
-	vp8Track, err := peerConnection.NewSampleTrack(webrtc.DefaultPayloadTypeVP8, "video", "pion2")
+	vp8Track, err := peerConnection.NewTrack(webrtc.DefaultPayloadTypeVP8, binary.LittleEndian.Uint32(randSSRC), "video", "pion2")
 	if err != nil {
 		panic(err)
 	}
@@ -134,8 +145,8 @@ func main() {
 		}
 
 		// Start pushing buffers on these tracks
-		gst.CreatePipeline(webrtc.Opus, opusTrack.Samples, "audiotestsrc").Start()
-		gst.CreatePipeline(webrtc.VP8, vp8Track.Samples, "videotestsrc").Start()
+		gst.CreatePipeline(webrtc.Opus, opusTrack, "audiotestsrc").Start()
+		gst.CreatePipeline(webrtc.VP8, vp8Track, "videotestsrc").Start()
 	}
 
 	select {}
