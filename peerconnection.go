@@ -1124,14 +1124,6 @@ func (pc *PeerConnection) AddTrack(track *Track) (*RTPSender, error) {
 	if pc.isClosed {
 		return nil, &rtcerr.InvalidStateError{Err: ErrConnectionClosed}
 	}
-	for _, transceiver := range pc.rtpTransceivers {
-		if transceiver.Sender.Track == nil {
-			continue
-		}
-		if track.ID == transceiver.Sender.Track.ID {
-			return nil, &rtcerr.InvalidAccessError{Err: ErrExistingTrack}
-		}
-	}
 	var transceiver *RTPTransceiver
 	for _, t := range pc.rtpTransceivers {
 		if !t.stopped &&
@@ -1155,7 +1147,6 @@ func (pc *PeerConnection) AddTrack(track *Track) (*RTPSender, error) {
 			RTPTransceiverDirectionSendonly,
 		)
 	}
-
 	transceiver.Mid = track.Kind.String() // TODO: Mid generation
 
 	return transceiver.Sender, nil
