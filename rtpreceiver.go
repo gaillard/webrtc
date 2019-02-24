@@ -14,7 +14,7 @@ type RTPReceiver struct {
 
 	track *Track
 
-	closed, received bool
+	closed, received chan interface{}
 	mu               sync.RWMutex
 
 	rtpReadStream, rtcpReadStream *lossyReadCloser
@@ -33,6 +33,8 @@ func (api *API) NewRTPReceiver(kind RTPCodecType, transport *DTLSTransport) (*RT
 		kind:      kind,
 		transport: transport,
 		api:       api,
+		closed:    make(chan interface{}),
+		received:  make(chan interface{}),
 	}, nil
 }
 
@@ -47,11 +49,12 @@ func (r *RTPReceiver) Track() *Track {
 func (r *RTPReceiver) Receive(parameters RTPReceiveParameters) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	if r.received {
+	select {
+	case <-r.received:
 		return fmt.Errorf("Receive has already been called")
+	default:
 	}
-	r.received = true
+	close(r.received)
 
 	r.track = &Track{
 		kind:     r.kind,
@@ -86,15 +89,10 @@ func (r *RTPReceiver) Receive(parameters RTPReceiveParameters) error {
 
 // Read reads incoming RTCP for this RTPReceiver
 func (r *RTPReceiver) Read(b []byte) (n int, err error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	switch {
-	case !r.received:
-		return 0, fmt.Errorf("RTPReceiver was never started")
-	case r.closed:
-		return 0, fmt.Errorf("RTPReceiver is closed")
-	default:
+	select {
+	case <-r.closed:
+		return 0, fmt.Errorf("RTPSender has been stopped")
+	case <-r.received:
 		return r.rtcpReadStream.read(b)
 	}
 }
@@ -115,34 +113,33 @@ func (r *RTPReceiver) Stop() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.closed {
+	select {
+	case <-r.closed:
 		return fmt.Errorf("RTPReceiver has already been closed")
-	} else if !r.received {
-		return fmt.Errorf("RTPReceiver was never started")
+	default:
 	}
 
-	if err := r.rtcpReadStream.close(); err != nil {
-		return err
-	}
-	if err := r.rtpReadStream.close(); err != nil {
-		return err
+	select {
+	case <-r.received:
+		if err := r.rtcpReadStream.close(); err != nil {
+			return err
+		}
+		if err := r.rtpReadStream.close(); err != nil {
+			return err
+		}
+	default:
 	}
 
-	r.closed = true
+	close(r.closed)
 	return nil
 }
 
 // readRTP should only be called by a track, this only exists so we can keep state in one place
 func (r *RTPReceiver) readRTP(b []byte) (n int, err error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	switch {
-	case !r.received:
-		return 0, fmt.Errorf("RTPReceiver was never started")
-	case r.closed:
-		return 0, fmt.Errorf("RTPReceiver is closed")
-	default:
+	select {
+	case <-r.closed:
+		return 0, fmt.Errorf("RTPSender has been stopped")
+	case <-r.received:
 		return r.rtpReadStream.read(b)
 	}
 }

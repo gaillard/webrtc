@@ -18,7 +18,7 @@ type RTPSender struct {
 	api *API
 
 	mu                     sync.RWMutex
-	sendCalled, stopCalled bool
+	sendCalled, stopCalled chan interface{}
 }
 
 // NewRTPSender constructs a new RTPSender
@@ -36,9 +36,11 @@ func (api *API) NewRTPSender(track *Track, transport *DTLSTransport) (*RTPSender
 	}
 
 	return &RTPSender{
-		track:     track,
-		transport: transport,
-		api:       api,
+		track:      track,
+		transport:  transport,
+		api:        api,
+		sendCalled: make(chan interface{}),
+		stopCalled: make(chan interface{}),
 	}, nil
 }
 
@@ -46,11 +48,11 @@ func (api *API) NewRTPSender(track *Track, transport *DTLSTransport) (*RTPSender
 func (r *RTPSender) Send(parameters RTPSendParameters) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	if r.sendCalled {
+	select {
+	case <-r.sendCalled:
 		return fmt.Errorf("Send has already been called")
+	default:
 	}
-	r.sendCalled = true
 
 	srtcpSession, err := r.transport.getSRTCPSession()
 	if err != nil {
@@ -66,6 +68,7 @@ func (r *RTPSender) Send(parameters RTPSendParameters) error {
 	r.track.senders = append(r.track.senders, r)
 	r.track.mu.Unlock()
 
+	close(r.sendCalled)
 	return nil
 }
 
@@ -74,12 +77,11 @@ func (r *RTPSender) Stop() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.stopCalled {
+	select {
+	case <-r.stopCalled:
 		return fmt.Errorf("Stop has already been called")
-	} else if !r.sendCalled {
-		return fmt.Errorf("RTPSender was never started")
+	default:
 	}
-	r.stopCalled = true
 
 	r.track.mu.Lock()
 	defer r.track.mu.Unlock()
@@ -90,20 +92,23 @@ func (r *RTPSender) Stop() error {
 		}
 	}
 	r.track.senders = filtered
-	return r.rtcpReadStream.close()
+
+	select {
+	case <-r.sendCalled:
+		return r.rtcpReadStream.close()
+	default:
+	}
+
+	close(r.stopCalled)
+	return nil
 }
 
 // Read reads incoming RTCP for this RTPReceiver
 func (r *RTPSender) Read(b []byte) (n int, err error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	switch {
-	case !r.sendCalled:
-		return 0, fmt.Errorf("RTPSender never got a send call")
-	case r.stopCalled:
-		return 0, fmt.Errorf("RTPReceiver is stopped")
-	default:
+	select {
+	case <-r.stopCalled:
+		return 0, fmt.Errorf("RTPSender has been stopped")
+	case <-r.sendCalled:
 		return r.rtcpReadStream.read(b)
 	}
 }
@@ -120,24 +125,20 @@ func (r *RTPSender) ReadRTCP(b []byte) (rtcp.Packet, rtcp.Header, error) {
 
 // sendRTP should only be called by a track, this only exists so we can keep state in one place
 func (r *RTPSender) sendRTP(b []byte) (int, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if !r.sendCalled {
-		return 0, fmt.Errorf("RTPSender was never started")
-	} else if r.stopCalled {
+	select {
+	case <-r.stopCalled:
 		return 0, fmt.Errorf("RTPSender has been stopped")
-	}
+	case <-r.sendCalled:
+		srtpSession, err := r.transport.getSRTPSession()
+		if err != nil {
+			return 0, err
+		}
 
-	srtpSession, err := r.transport.getSRTPSession()
-	if err != nil {
-		return 0, err
-	}
+		writeStream, err := srtpSession.OpenWriteStream()
+		if err != nil {
+			return 0, err
+		}
 
-	writeStream, err := srtpSession.OpenWriteStream()
-	if err != nil {
-		return 0, err
+		return writeStream.Write(b)
 	}
-
-	return writeStream.Write(b)
 }
