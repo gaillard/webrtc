@@ -130,6 +130,19 @@ func (t *Track) WriteSample(s media.Sample) error {
 	return nil
 }
 
+// WriteRTP writes RTP packets to the track
+func (t *Track) WriteRTP(p *rtp.Packet) error {
+	buf, err := p.Marshal()
+	if err != nil {
+		return err
+	}
+	if _, err := t.Write(append([]byte{}, buf...)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NewTrack initializes a new *Track
 func NewTrack(payloadType uint8, ssrc uint32, id, label string, codec *RTPCodec) (*Track, error) {
 	if ssrc == 0 {
