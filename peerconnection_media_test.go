@@ -66,7 +66,7 @@ func TestPeerConnection_Media_Sample(t *testing.T) {
 
 		haveClosedAwaitRTPRecv := false
 		for {
-			p, routineErr := track.ReadRTP(make([]byte, 1400))
+			p, routineErr := track.ReadRTP()
 			if routineErr != nil {
 				close(awaitRTPRecvClosed)
 				return

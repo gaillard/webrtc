@@ -82,7 +82,8 @@ func (t *Track) Read(b []byte) (n int, err error) {
 }
 
 // ReadRTP is a convenience method that wraps Read and unmarshals for you
-func (t *Track) ReadRTP(b []byte) (*rtp.Packet, error) {
+func (t *Track) ReadRTP() (*rtp.Packet, error) {
+	b := make([]byte, receiveMTU)
 	i, err := t.Read(b)
 	if err != nil {
 		return nil, err
@@ -172,8 +173,7 @@ func NewTrack(payloadType uint8, ssrc uint32, id, label string, codec *RTPCodec)
 // determinePayloadType blocks and reads a single packet to determine the PayloadType for this Track
 // this is useful if we are dealing with a remote track and we can't announce it to the user until we know the payloadType
 func (t *Track) determinePayloadType() error {
-	buf := make([]byte, 1400)
-	r, err := t.ReadRTP(buf)
+	r, err := t.ReadRTP()
 	if err != nil {
 		return err
 	}

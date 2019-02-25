@@ -63,9 +63,8 @@ func main() {
 				panic(err)
 			}
 
-			buf := make([]byte, 1400)
 			for {
-				packet, err := track.ReadRTP(buf)
+				packet, err := track.ReadRTP()
 				if err != nil {
 					panic(err)
 				}
