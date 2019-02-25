@@ -157,7 +157,9 @@ func TestDataChannel_MessagesAreOrdered(t *testing.T) {
 	inner := func(msg DataChannelMessage) {
 		// randomly sleep
 		// NB: The big.Int/crypto.Rand is overkill but makes the linter happy
+		/* #nosec */
 		randInt, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+		/* #nosec */
 		if err != nil {
 			t.Fatalf("Failed to get random sleep duration: %s", err)
 		}

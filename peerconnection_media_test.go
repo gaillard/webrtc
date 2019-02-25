@@ -2,9 +2,8 @@ package webrtc
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -78,12 +77,7 @@ func TestPeerConnection_Media_Sample(t *testing.T) {
 		}
 	})
 
-	buf := make([]byte, 4)
-	if _, err = rand.Read(buf); err != nil {
-		t.Fatal("failed to generate random value")
-	}
-
-	vp8Track, err := pcOffer.NewTrack(DefaultPayloadTypeVP8, binary.LittleEndian.Uint32(buf), "video", "pion")
+	vp8Track, err := pcOffer.NewTrack(DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,20 +184,11 @@ func TestPeerConnection_Media_Shutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vp8SSRC := make([]byte, 4)
-	opusSSRC := make([]byte, 4)
-
-	if _, err = rand.Read(vp8SSRC); err != nil {
-		t.Fatal("failed to generate random value")
-	} else if _, err = rand.Read(opusSSRC); err != nil {
-		t.Fatal("failed to generate random value")
-	}
-
-	opusTrack, err := pcOffer.NewTrack(DefaultPayloadTypeOpus, binary.LittleEndian.Uint32(opusSSRC), "audio", "pion1")
+	opusTrack, err := pcOffer.NewTrack(DefaultPayloadTypeOpus, rand.Uint32(), "audio", "pion1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	vp8Track, err := pcOffer.NewTrack(DefaultPayloadTypeVP8, binary.LittleEndian.Uint32(vp8SSRC), "video", "pion2")
+	vp8Track, err := pcOffer.NewTrack(DefaultPayloadTypeVP8, rand.Uint32(), "video", "pion2")
 	if err != nil {
 		t.Fatal(err)
 	}
