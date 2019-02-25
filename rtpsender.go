@@ -114,13 +114,14 @@ func (r *RTPSender) Read(b []byte) (n int, err error) {
 }
 
 // ReadRTCP is a convenience method that wraps Read and unmarshals for you
-func (r *RTPSender) ReadRTCP(b []byte) (rtcp.Packet, rtcp.Header, error) {
+func (r *RTPSender) ReadRTCP(b []byte) (rtcp.Packet, error) {
 	i, err := r.Read(b)
 	if err != nil {
-		return nil, rtcp.Header{}, err
+		return nil, err
 	}
 
-	return rtcp.Unmarshal(b[:i])
+	pkt, _, err := rtcp.Unmarshal(b[:i])
+	return pkt, err
 }
 
 // sendRTP should only be called by a track, this only exists so we can keep state in one place
