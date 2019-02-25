@@ -79,7 +79,7 @@ func (r *RTPSender) Stop() error {
 
 	select {
 	case <-r.stopCalled:
-		return fmt.Errorf("Stop has already been called")
+		return nil
 	default:
 	}
 

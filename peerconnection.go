@@ -859,10 +859,15 @@ func (pc *PeerConnection) SetRemoteDescription(desc SessionDescription) error {
 
 		for _, tranceiver := range pc.rtpTransceivers {
 			if tranceiver.Sender != nil {
-				if err = tranceiver.Sender.Send(RTPSendParameters{
+				err = tranceiver.Sender.Send(RTPSendParameters{
 					encodings: RTPEncodingParameters{
-						RTPCodingParameters{SSRC: tranceiver.Sender.track.SSRC(), PayloadType: tranceiver.Sender.track.PayloadType()},
-					}}); err != nil {
+						RTPCodingParameters{
+							SSRC:        tranceiver.Sender.track.SSRC(),
+							PayloadType: tranceiver.Sender.track.PayloadType(),
+						},
+					}})
+
+				if err != nil {
 					pcLog.Warnf("Failed to start Sender: %s", err)
 				}
 			}

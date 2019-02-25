@@ -115,7 +115,7 @@ func (r *RTPReceiver) Stop() error {
 
 	select {
 	case <-r.closed:
-		return fmt.Errorf("RTPReceiver has already been closed")
+		return nil
 	default:
 	}
 
