@@ -106,7 +106,7 @@ func (t *Track) Write(b []byte) (n int, err error) {
 	t.mu.RUnlock()
 
 	for _, s := range senders {
-		if _, err := s.sendRTP(append([]byte{}, b...)); err != nil {
+		if _, err := s.sendRTP(b); err != nil {
 			return 0, err
 		}
 	}
@@ -122,7 +122,7 @@ func (t *Track) WriteSample(s media.Sample) error {
 		if err != nil {
 			return err
 		}
-		if _, err := t.Write(append([]byte{}, buf...)); err != nil {
+		if _, err := t.Write(buf); err != nil {
 			return err
 		}
 	}
@@ -136,7 +136,7 @@ func (t *Track) WriteRTP(p *rtp.Packet) error {
 	if err != nil {
 		return err
 	}
-	if _, err := t.Write(append([]byte{}, buf...)); err != nil {
+	if _, err := t.Write(buf); err != nil {
 		return err
 	}
 
